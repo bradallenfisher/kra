@@ -1,6 +1,6 @@
 # Division 2 – Clan XP (Next.js)
 
-Next.js app for **clan XP per user** (total and weekly), **leaders board** with stat filters, and **1v1** comparison. Data comes from manual entry or (when reachable) [TheDivisionTab](https://thedivisiontab.com); weekly XP is computed from snapshots (Monday 00:00 UTC baseline).
+Next.js app for **clan XP per user** (total and weekly), **leaders board** with stat filters, and **1v1** comparison. Data comes from [Tracker.gg](https://tracker.gg) (when you have an API key and use “Refresh from API”) or [TheDivisionTab](https://thedivisiontab.com); weekly XP is computed from snapshots (Monday 00:00 UTC baseline).
 
 ## Requirements
 
@@ -13,8 +13,7 @@ Next.js app for **clan XP per user** (total and weekly), **leaders board** with 
 
    If you have a Tracker.gg API key, add it so "Refresh from API" can pull PvE XP, player level, and clan XP from Tracker:
 
-   - Copy `.env.example` to `.env`
-   - Set `TRN_API_KEY` to your key (from [tracker.gg/developers/apps](https://tracker.gg/developers/apps))
+   - Copy `.env.example` to **`.env.local`** (or `.env`) and set `TRN_API_KEY` to your key (from [tracker.gg/developers/apps](https://tracker.gg/developers/apps)). Prefer `.env.local` for local secrets so they stay out of git.
    - On Vercel: Project → Settings → Environment Variables → add `TRN_API_KEY`
 
 2. **Clan member list**
@@ -28,19 +27,14 @@ Next.js app for **clan XP per user** (total and weekly), **leaders board** with 
    ]
    ```
 
-2. **Install and run**
+3. **Install and run**
 
    ```bash
    npm install
    npm run dev
    ```
 
-   Open **http://localhost:3000**.
-
-3. **Pages**
-
-   - **/** – Leaders board (filter by stat), 1v1 picker (defaults to #1 vs #2), links to Tracker.gg leaderboards.
-   - **/entry** – Manual entry: enter total clan XP per member from the in-game clan screen and save a snapshot.
+   Open **http://localhost:3000**. Use **“Refresh from API”** on the home page to pull from Tracker.gg (saves a snapshot).
 
 4. **Snapshot script (optional)**
 
@@ -64,13 +58,25 @@ Next.js app for **clan XP per user** (total and weekly), **leaders board** with 
 
 ## API
 
-- **GET /api/clan** – JSON: `{ week_start_utc, members: [{ name, pid, xp_clan, xp_weekly }] }`.  
-  **GET /api/clan?refresh=1** – Refetch from TheDivisionTab (if reachable).
+- **GET /api/clan** – JSON: `{ week_start_utc, members: [{ name, pid, xp_clan, xp_weekly, xp_pve, player_level }] }`.  
+  **GET /api/clan?refresh=1** – Fetch from Tracker.gg (if `TRN_API_KEY` set) or TheDivisionTab, then save a snapshot.
 - **GET /api/config** – JSON: `{ members: [{ pid, name }] }` (config order).
-- **POST /api/manual** – Form body: `xp_0`, `xp_1`, … (total clan XP per member in config order). Redirects to `/entry`.
+- **POST /api/manual** – Form body: `xp_0`, `pve_0`, `level_0`, … (optional fallback). Redirects to `/`.
+
+### Testing without API
+
+- **In the app:** Use the “Test without API” section and click **Load sample data** to fill the leaderboard with sample stats.
+- **With curl** (2 members in config order; adjust indices if you have more):
+
+  ```bash
+  curl -X POST http://localhost:3000/api/manual \
+    -F xp_0=50000 -F pve_0=100000 -F level_0=40 \
+    -F xp_1=30000 -F pve_1=80000 -F level_1=35
+  ```
+
+  Then open http://localhost:3000 and refresh; the leaderboard and 1v1 will show the entered stats.
 
 ## Data and caveats
 
-- Snapshots: `data/snapshots.json`. Manual entries and snapshot script both append here.
-- TheDivisionTab is unofficial; when unreachable (e.g. DNS), use the manual entry page.
-- Tracker.gg links (leaderboards, profiles) are for reference; we don’t fetch their data.
+- Snapshots: `data/snapshots.json`. “Refresh from API” and the snapshot script append here.
+- With `TRN_API_KEY` set, refresh uses Tracker.gg for PvE XP, player level, and clan XP.

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "clean": "rm -rf .next",
     "start": "next start",
     "snapshot": "node scripts/snapshot.js",
     "search": "node scripts/search.js",

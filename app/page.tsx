@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
 import type { ClanApiResponse, ClanMember } from './types';
 import {
   LEADERBOARD_STATS,
@@ -113,13 +112,15 @@ function PlayerColumn({
 export default function HomePage() {
   const [data, setData] = useState<ClanApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statFilter, setStatFilter] = useState<StatId>('xp_clan');
   const [playerA, setPlayerA] = useState<ClanMember | null>(null);
   const [playerB, setPlayerB] = useState<ClanMember | null>(null);
+  const [showDebug, setShowDebug] = useState(true);
 
   useEffect(() => {
-    fetch(API_URL)
+    fetch(`${API_URL}?debug=1`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
@@ -190,22 +191,61 @@ export default function HomePage() {
     }
   };
 
+  const hasMembers = members.length > 0;
+  const hasAnyStat = hasMembers && members.some((m) =>
+    (m.xp_clan ?? 0) > 0 || (m.xp_weekly ?? 0) > 0 || (m.xp_pve ?? 0) > 0 || (m.player_level ?? 0) > 0
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}?refresh=1&debug=1`);
+      if (!res.ok) throw new Error(res.statusText);
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Refresh failed');
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const debugInfo = data && '_debug' in data ? (data as ClanApiResponse & { _debug?: Record<string, unknown> })._debug : null;
+
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-4 py-8">
-      <header className="mb-10 border-b border-division-border pb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">
-          Division 2 – Leaders & 1v1
-        </h1>
-        <p className="mt-1 text-division-muted">
-          Leaders by stat, then pit #1 vs #2 (or pick anyone). Enter data on the{' '}
-          <Link href="/entry" className="text-division-orange hover:underline">
-            clan entry page
-          </Link>
-          ; more stats on Tracker.gg below.
-        </p>
+      <header className="mb-8 border-b border-division-border pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-100">
+              Division 2 – Clan Leaderboard
+            </h1>
+            <p className="mt-1 text-sm text-division-muted">
+              Filter by stat and compare your team. Like{' '}
+              <a
+                href="https://tracker.gg/division-2/leaderboards/stats/all/Kills?page=1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-division-orange hover:underline"
+              >
+                Tracker.gg
+              </a>
+              , but for your clan only.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+            className="rounded-lg border border-division-border bg-division-card px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-division-border disabled:opacity-50"
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh from API'}
+          </button>
+        </div>
       </header>
 
-      {loading && (
+      {loading && !data && (
         <div className="rounded-xl border border-division-border bg-division-card p-8 text-center text-division-muted">
           Loading clan data…
         </div>
@@ -213,39 +253,72 @@ export default function HomePage() {
 
       {error && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-400">
-          Could not load clan data. Run <code className="rounded bg-division-card px-1">npm run dev</code> and
-          ensure <code className="rounded bg-division-card px-1">config/clan-members.json</code> exists.
+          Could not load clan data. Ensure the API is running (e.g. <code className="rounded bg-division-card px-1">npm run dev</code> locally)
+          and <code className="rounded bg-division-card px-1">config/clan-members.json</code> exists. Set{' '}
+          <code className="rounded bg-division-card px-1">TRN_API_KEY</code> in Vercel for API refresh.
         </div>
       )}
 
       {!loading && !error && data && (
         <>
-          <section className="mb-10">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
-                <span className="rounded bg-division-orange/20 p-1.5">
-                  <svg
-                    className="h-4 w-4 text-division-orange"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 00-4.438 0 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                    />
-                  </svg>
-                </span>
-                Leaders
+          {!hasMembers && (
+            <div className="mb-8 rounded-xl border border-division-border bg-division-card p-6 text-center">
+              <p className="text-division-muted">
+                No clan members yet. Add members in <code className="rounded bg-division-dark px-1">config/clan-members.json</code> and redeploy.
+              </p>
+            </div>
+          )}
+
+          {hasMembers && !hasAnyStat && (
+            <div className="mb-6 rounded-lg border border-division-orange/30 bg-division-orange/10 px-4 py-3 text-sm text-division-orange">
+              No stats yet. Click <strong>Refresh from API</strong> to pull from Tracker.gg (set <code className="rounded bg-division-dark px-1">TRN_API_KEY</code> in Vercel), or use the options below to test.
+            </div>
+          )}
+
+          {hasMembers && (
+            <section className="mb-8 rounded-xl border border-division-border bg-division-card px-4 py-3">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-division-muted">
+                Test without API
               </h2>
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-division-muted">Stat:</label>
+              <p className="mb-3 text-sm text-zinc-400">
+                Load sample stats so you can try the leaderboard and 1v1. Data is saved to your local snapshot file.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  const form = new FormData();
+                  members.forEach((_, i) => {
+                    const xp = [50000, 30000][i] ?? 0;
+                    const pve = [100000, 80000][i] ?? 0;
+                    const level = [40, 35][i] ?? 40;
+                    form.set(`xp_${i}`, String(xp));
+                    form.set(`pve_${i}`, String(pve));
+                    form.set(`level_${i}`, String(level));
+                  });
+                  await fetch('/api/manual', { method: 'POST', body: form, redirect: 'manual' });
+                  const res = await fetch(`${API_URL}?debug=1`);
+                  if (res.ok) setData(await res.json());
+                }}
+                className="rounded-lg border border-division-border bg-division-dark px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-division-border"
+              >
+                Load sample data
+              </button>
+            </section>
+          )}
+
+          <section className="mb-10">
+            <h2 className="mb-4 text-lg font-semibold text-zinc-100">
+              Clan leaderboard
+            </h2>
+            <div className="mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-division-border bg-division-card px-4 py-3">
+              <span className="text-sm font-medium text-division-muted">Clan members only</span>
+              <span className="text-division-border">|</span>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-division-muted">Stat</label>
                 <select
                   value={statFilter}
                   onChange={(e) => setStatFilter(e.target.value as StatId)}
-                  className="rounded-lg border border-division-border bg-division-card px-3 py-2 text-zinc-100 focus:border-division-orange focus:outline-none focus:ring-1 focus:ring-division-orange"
+                  className="rounded border border-division-border bg-division-dark px-3 py-2 text-sm text-zinc-100 focus:border-division-orange focus:outline-none focus:ring-1 focus:ring-division-orange"
                 >
                   {LEADERBOARD_STATS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -317,7 +390,7 @@ export default function HomePage() {
             </div>
 
             <p className="mt-3 text-sm text-division-muted">
-              More leaderboards:{' '}
+              More stats on Tracker.gg:{' '}
               {LEADERBOARD_STATS.filter((s) => !OUR_STAT_IDS.includes(s.id)).map((s) => (
                 <a
                   key={s.id}
@@ -433,6 +506,68 @@ export default function HomePage() {
                   isWinnerLevel={winnerLevel?.pid === playerB.pid}
                   side="right"
                 />
+              </div>
+            )}
+          </section>
+
+          <section className="mb-8 rounded-xl border border-division-border bg-division-card">
+            <button
+              type="button"
+              onClick={() => setShowDebug((d) => !d)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-division-muted hover:text-zinc-300"
+            >
+              Where do stats come from? (debug)
+              <span className="text-division-muted">{showDebug ? '▼' : '▶'}</span>
+            </button>
+            {showDebug && (
+              <div className="border-t border-division-border px-4 py-3 font-mono text-xs text-zinc-400">
+                {debugInfo ? (
+                  <>
+                    <p className="mb-2 font-sans font-medium text-division-orange">
+                      {(debugInfo as { whereStatsComeFrom?: string }).whereStatsComeFrom}
+                    </p>
+                    <dl className="space-y-1">
+                      <dt className="text-division-muted">Data source</dt>
+                      <dd className="ml-4">{(debugInfo as { dataSource?: string }).dataSource}</dd>
+                      <dt className="text-division-muted">API source (if refresh)</dt>
+                      <dd className="ml-4">{(debugInfo as { apiSource?: string }).apiSource ?? '–'}</dd>
+                      <dt className="text-division-muted">Snapshot count</dt>
+                      <dd className="ml-4">{(debugInfo as { snapshotCount?: number }).snapshotCount}</dd>
+                      <dt className="text-division-muted">Last snapshot</dt>
+                      <dd className="ml-4">{(debugInfo as { lastSnapshotAtISO?: string }).lastSnapshotAtISO ?? '–'}</dd>
+                      <dt className="text-division-muted">Snapshot file</dt>
+                      <dd className="ml-4 break-all">{(debugInfo as { snapshotPath?: string }).snapshotPath}</dd>
+                      <dt className="text-division-muted">TRN_API_KEY set</dt>
+                      <dd className="ml-4">{(debugInfo as { apiKeySet?: boolean }).apiKeySet ? 'Yes' : 'No'}</dd>
+                    <dt className="text-division-muted">Environment</dt>
+                    <dd className="ml-4">{(debugInfo as { environment?: string }).environment ?? '–'}</dd>
+                    {(debugInfo as { trackerMemberErrors?: string[] }).trackerMemberErrors?.length ? (
+                      <>
+                        <dt className="text-division-muted">Tracker per-member errors</dt>
+                        <dd className="ml-4 text-red-400">
+                          {(debugInfo as { trackerMemberErrors?: string[] }).trackerMemberErrors?.join('; ')}
+                        </dd>
+                      </>
+                    ) : null}
+                    {(debugInfo as { trackerNoStats?: boolean }).trackerNoStats && (
+                      <>
+                        <dt className="text-division-muted">Tracker returned no stats</dt>
+                        <dd className="ml-4 text-amber-400">Check platform (xbl/psn/ubi) and usernames in config</dd>
+                      </>
+                    )}
+                    {(debugInfo as { apiError?: string }).apiError && (
+                        <>
+                          <dt className="text-division-muted">API error</dt>
+                          <dd className="ml-4 text-red-400">{(debugInfo as { apiError?: string }).apiError}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </>
+                ) : (
+                  <p className="text-amber-400">
+                    No debug in response (cached?). Clear cache: run <code className="rounded bg-division-dark px-1">npm run clean</code> then <code className="rounded bg-division-dark px-1">npm run dev</code>, or hard-refresh (Cmd+Shift+R). Or open <a href="/api/clan?debug=1" target="_blank" rel="noopener noreferrer" className="text-division-orange underline">/api/clan?debug=1</a> in a new tab to verify the API returns <code className="rounded bg-division-dark px-1">_debug</code>.
+                  </p>
+                )}
               </div>
             )}
           </section>

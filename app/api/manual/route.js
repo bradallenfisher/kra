@@ -24,7 +24,7 @@ export async function POST(request) {
       };
     });
     saveSnapshot({ timestamp: Date.now(), members });
-    return NextResponse.redirect(new URL('/entry', request.url));
+    return NextResponse.redirect(new URL('/', request.url));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
