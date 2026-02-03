@@ -9,7 +9,15 @@ Next.js app for **clan XP per user** (total and weekly), **leaders board** with 
 
 ## Setup
 
-1. **Clan member list**
+1. **Tracker Network API key (optional)**
+
+   If you have a Tracker.gg API key, add it so "Refresh from API" can pull PvE XP, player level, and clan XP from Tracker:
+
+   - Copy `.env.example` to `.env`
+   - Set `TRN_API_KEY` to your key (from [tracker.gg/developers/apps](https://tracker.gg/developers/apps))
+   - On Vercel: Project → Settings → Environment Variables → add `TRN_API_KEY`
+
+2. **Clan member list**
 
    Edit `config/clan-members.json`. Each entry needs at least `pid` (Ubisoft ID or display name) and optional `name`, `platform` (e.g. `xbl`, `uplay`, `psn`):
 
