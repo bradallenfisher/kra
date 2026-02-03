@@ -98,7 +98,7 @@ export default function EntryPage() {
                           {formatNum(m.xp_weekly)}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-zinc-300">
-                          {formatNum(m.xp_pve)}
+                          {formatNum(m.xp_pve ?? null)}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-zinc-300">
                           {m.player_level != null ? m.player_level : '–'}

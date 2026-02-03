@@ -92,7 +92,7 @@ function PlayerColumn({
         />
         <StatCard
           label="PvE XP"
-          value={formatNum(member.xp_pve)}
+          value={formatNum(member.xp_pve ?? null)}
           highlight={isWinnerPve}
         />
         <StatCard
